@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Visual Acuity Tool</title>
+  <title>Visual Acuity Toolkit</title>
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; max-width: 700px; margin: auto; background-color: #f4f4f4; }
-    h1 { color: #222; }
+    body { font-family: Arial, sans-serif; padding: 20px; max-width: 700px; margin: auto; background-color: #f9f9f9; }
+    h1 { color: #333; }
     label, input, select, button { display: block; margin: 10px 0; width: 100%; }
     input, select { padding: 8px; }
     button { padding: 10px; background-color: #007BFF; color: white; border: none; border-radius: 4px; cursor: pointer; }
@@ -15,7 +15,7 @@
   </style>
 </head>
 <body>
-  <h1>Visual Acuity Converter</h1>
+  <h1>Visual Acuity Toolkit</h1>
 
   <label for="modeSelector">Select Mode</label>
   <select id="modeSelector" onchange="toggleMode()">
@@ -36,7 +36,7 @@
     <label for="visionInput">Enter visual acuity value</label>
     <input type="text" id="visionInput" placeholder="e.g., 2.5/200 or 0.3">
 
-    <label for="lettersInput">Letters additionally read (+) or missed (−)</label>
+    <label for="lettersInput">Letters read (+) or missed (−)</label>
     <input type="number" id="lettersInput" placeholder="e.g., -2 or +1">
   </div>
 
@@ -47,6 +47,8 @@
     <label for="distanceInput">Test distance</label>
     <select id="distanceInput">
       <option value="55">55 cm</option>
+      <option value="38">38 cm</option>
+      <option value="84">84 cm</option>
     </select>
 
     <label for="cpdInput">Cycles per degree (cpd)</label>
@@ -66,13 +68,11 @@
 
   <script>
     const jaegerToM = {
-      1: 0.4, 2: 0.6, 3: 0.8, 4: 1.0, 5: 1.25, 6: 2.0, 8: 2.5,
-      10: 4.0, 12: 5.0, 16: 10.0
+      1: 0.4, 2: 0.6, 3: 0.8, 4: 1.0, 5: 1.25, 6: 2.0, 8: 2.5, 10: 4.0, 12: 5.0, 16: 10.0
     };
 
-    const tellerExpected = {
-      1: 0.4, 2: 0.65, 3: 1.0, 4: 1.35, 5: 1.7, 6: 2.0,
-      7: 2.35, 8: 2.7, 9: 3.0, 10: 3.35, 11: 3.65, 12: 4.0
+    const tellerThresholds = {
+      55: [0.23, 0.31, 0.41, 0.54, 0.67, 0.78, 0.89, 1.00, 1.12, 1.23, 1.33, 1.43] // 1–12 months
     };
 
     function toggleMode() {
@@ -92,108 +92,77 @@
         const inputType = document.getElementById('inputType').value;
         const input = document.getElementById('visionInput').value.trim().replace(',', '.');
         const extraLetters = parseInt(document.getElementById('lettersInput').value) || 0;
-        let decimal, logMAR, MAR, snellen20, snellen6;
+        let decimal, logMAR;
 
         if (inputType === 'snellen') {
           const parts = input.split('/');
           if (parts.length !== 2 || isNaN(parts[0]) || isNaN(parts[1])) {
-            resultDiv.innerHTML = "Please enter a valid Snellen value (e.g., 2.5/200).";
-            resultDiv.style.display = 'block';
-            return;
+            resultDiv.innerHTML = "Please enter a valid Snellen value.";
+            resultDiv.style.display = 'block'; return;
           }
           decimal = parseFloat(parts[0]) / parseFloat(parts[1]);
-          logMAR = -Math.log10(decimal);
         } else if (inputType === 'logmar') {
           logMAR = parseFloat(input);
           decimal = Math.pow(10, -logMAR);
         } else if (inputType === 'decimal') {
           decimal = parseFloat(input);
-          logMAR = -Math.log10(decimal);
         } else if (inputType === 'mar') {
-          MAR = parseFloat(input);
-          decimal = 1 / MAR;
-          logMAR = -Math.log10(decimal);
+          decimal = 1 / parseFloat(input);
         }
 
-        logMAR += extraLetters * 0.02;
-        decimal = Math.pow(10, -logMAR);
-        MAR = (1 / decimal).toFixed(2);
-        snellen20 = `20/${Math.round(20 / decimal)}`;
-        snellen6 = `6/${Math.round(6 / decimal)}`;
+        if (!decimal || isNaN(decimal)) {
+          resultDiv.innerHTML = "Invalid input.";
+          resultDiv.style.display = 'block'; return;
+        }
 
+        logMAR = -Math.log10(decimal) + extraLetters * 0.02;
         const mEquivalent = (0.4 / decimal).toFixed(1);
         const jEquivalent = Object.entries(jaegerToM).find(([j, m]) => Math.abs(m - mEquivalent) < 0.3);
 
-        let classification = "";
-        let aids = "";
-
-        if (decimal >= 0.3) {
-          classification = "Mild visual impairment – 20/70 or better (decimal ≥ 0.3)";
-          aids = "May not need aids or may benefit from near additions.";
-        } else if (decimal >= 0.1) {
-          classification = "Moderate – 20/200 to 20/70 (decimal 0.1–0.3)";
-          aids = "Magnifiers ~3× to 6×, low-power telescopes.";
-        } else if (decimal >= 0.05) {
-          classification = "Severe – 20/400 to 20/200 (decimal 0.05–0.1)";
-          aids = "Magnifiers 6× to 10×, stand magnifiers, high-add lenses.";
-        } else if (decimal >= 0.01) {
-          classification = "Profound – LP to 20/400 (decimal 0.01–0.05)";
-          aids = "Electronic magnifiers, tactile tools, screen readers.";
-        } else {
-          classification = "Near total blindness – NLP to LP (decimal < 0.01)";
-          aids = "Tactile aids, Braille, mobility training.";
-        }
-
         output = `
-          <strong>Conversion Results:</strong><br>
+          <strong>Converted Values:</strong><br>
           • Decimal: ${decimal.toFixed(3)}<br>
           • logMAR: ${logMAR.toFixed(2)}<br>
-          • MAR: ${MAR}<br>
-          • Snellen (20 ft): ${snellen20}<br>
-          • Snellen (6 m): ${snellen6}<br>
-          • Near VA: ${mEquivalent} M${jEquivalent ? ` (J${jEquivalent[0]})` : ''}<br><br>
-          <strong>Classification:</strong><br>
-          • ${classification}<br><br>
-          <strong>Recommended Aids:</strong><br>
-          • ${aids}<br>
-        `;
+          • Snellen (20 ft): 20/${Math.round(20 / decimal)}<br>
+          • Near Vision: ${mEquivalent}M${jEquivalent ? ` (J${jEquivalent[0]})` : ''}`;
       }
 
       if (mode === 'teller') {
         const age = parseInt(document.getElementById('ageInput').value);
+        const dist = parseInt(document.getElementById('distanceInput').value);
         const cpd = parseFloat(document.getElementById('cpdInput').value);
 
-        if (!age || !cpd || age < 1 || age > 12) {
-          output = "Enter valid age (1–12 months) and cpd value.";
-        } else {
-          const expected = tellerExpected[age];
-          const status = cpd >= expected ? "within normal limits" : "below expected for age";
-          output = `
-            <strong>Teller Results:</strong><br>
-            • Entered: ${cpd} cpd<br>
-            • Expected: ≥ ${expected} cpd<br>
-            • Result: <strong>${status}</strong>
-          `;
-        }
+        const expected = tellerThresholds[dist] && age >= 1 && age <= 12 ? tellerThresholds[dist][age - 1] : null;
+        const result = expected ? (cpd >= expected ? "Within expected range" : "Below expected range") : "No reference";
+        const decimal = cpd / 30;
+        const logmar = -Math.log10(decimal);
+
+        output = `
+          <strong>Teller Result:</strong><br>
+          • Cycles per degree: ${cpd}<br>
+          • Status: ${result}<br><br>
+          <strong>Approximate Equivalents:</strong><br>
+          • Snellen (20 ft): 20/${Math.round(20 / decimal)}<br>
+          • Decimal: ${decimal.toFixed(2)}<br>
+          • logMAR: ${logmar.toFixed(2)}<br>
+          <em>*Grating acuity may overestimate recognition acuity*</em>`;
       }
 
       if (mode === 'near') {
         const m = parseFloat(document.getElementById('mInput').value);
         const j = parseInt(document.getElementById('jInput').value);
-        let outputNear = "";
+        let decimal, snellen;
 
         if (!isNaN(m)) {
-          const decimal = 0.4 / m;
-          outputNear += `• Estimated distance VA: 20/${Math.round(20 / decimal)} (decimal: ${decimal.toFixed(2)})<br>`;
+          decimal = 0.4 / m;
+          snellen = `20/${Math.round(20 / decimal)}`;
+          output += `<strong>M input:</strong><br>• Snellen: ${snellen}<br>• Decimal: ${decimal.toFixed(2)}<br>`;
         }
-
         if (!isNaN(j) && jaegerToM[j]) {
-          const mFromJ = jaegerToM[j];
-          const decimal = 0.4 / mFromJ;
-          outputNear += `• J${j} ≈ ${mFromJ} M → 20/${Math.round(20 / decimal)} (decimal: ${decimal.toFixed(2)})<br>`;
+          decimal = 0.4 / jaegerToM[j];
+          snellen = `20/${Math.round(20 / decimal)}`;
+          output += `<br><strong>Jaeger input:</strong><br>• Snellen: ${snellen}<br>• Decimal: ${decimal.toFixed(2)}`;
         }
-
-        output = `<strong>Near Vision Conversion:</strong><br>${outputNear}`;
       }
 
       resultDiv.innerHTML = output;
