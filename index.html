@@ -77,6 +77,15 @@
       84: [0.16, 0.22, 0.29, 0.38, 0.47, 0.55, 0.63, 0.71, 0.79, 0.87, 0.94, 1.01]
     };
 
+    function getCid10Classification(decimal) {
+      if (decimal >= 0.3) return { level: "Normal vision", aids: "None needed" };
+      if (decimal >= 0.1) return { level: "Mild visual impairment (20/70–20/200)", aids: "2–4× magnifiers, improved lighting" };
+      if (decimal >= 0.05) return { level: "Moderate visual impairment (20/200–20/400)", aids: "4–6× magnifiers, electronic aids" };
+      if (decimal >= 0.02) return { level: "Severe visual impairment (20/500–20/1000)", aids: "6–10× magnifiers, CCTV, screen readers" };
+      if (decimal >= 0.01) return { level: "Profound impairment (less than 20/1000)", aids: "Braille, voice output devices" };
+      return { level: "Near total or total blindness", aids: "Orientation/mobility training, Braille, tactile books" };
+    }
+
     function toggleMode() {
       const mode = document.getElementById('modeSelector').value;
       document.getElementById('standardSection').style.display = mode === 'standard' ? 'block' : 'none';
@@ -118,15 +127,25 @@
         }
 
         logMAR = -Math.log10(decimal) + extraLetters * 0.02;
+        const mar = (1 / decimal).toFixed(2);
         const mEquivalent = (0.4 / decimal).toFixed(1);
         const jEquivalent = Object.entries(jaegerToM).find(([j, m]) => Math.abs(m - mEquivalent) < 0.3);
+        const snellenFeet = `20/${Math.round(20 / decimal)}`;
+        const snellenMeters = `6/${Math.round(6 / decimal)}`;
+
+        const cid = getCid10Classification(decimal);
 
         output = `
           <strong>Converted Values:</strong><br>
           • Decimal: ${decimal.toFixed(3)}<br>
           • logMAR: ${logMAR.toFixed(2)}<br>
-          • Snellen (20 ft): 20/${Math.round(20 / decimal)}<br>
-          • Near Vision: ${mEquivalent}M${jEquivalent ? ` (J${jEquivalent[0]})` : ''}`;
+          • MAR: ${mar}<br>
+          • Snellen (20 ft): ${snellenFeet}<br>
+          • Snellen (6 m): ${snellenMeters}<br>
+          • Near Vision: ${mEquivalent}M${jEquivalent ? ` (J${jEquivalent[0]})` : ''}<br><br>
+          <strong>ICD-10 Classification:</strong><br>
+          • ${cid.level}<br>
+          • Recommended aids: ${cid.aids}`;
       }
 
       if (mode === 'teller') {
