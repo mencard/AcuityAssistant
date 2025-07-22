@@ -144,8 +144,14 @@
           • Snellen (6 m): ${snellenMeters}<br>
           • Near Vision: ${mEquivalent}M${jEquivalent ? ` (J${jEquivalent[0]})` : ''}<br><br>
           <strong>ICD-10 Classification:</strong><br>
-          • ${cid.level}<br>
-          • Recommended aids: ${cid.aids}`;
+          • ${cid.level}<br><br>
+          <strong>Recommended Aids:</strong><br>
+          • ${cid.aids.replace(/, /g, '<br>• ')}<br><br>
+          <strong>Sources:</strong><br>
+          • WHO – ICD-10<br>
+          • American Academy of Ophthalmology (AAO)<br>
+          • Pan-American Association of Ophthalmology (PAAO)<br>
+          • Conselho Brasileiro de Oftalmologia (CBO)`;
       }
 
       if (mode === 'teller') {
